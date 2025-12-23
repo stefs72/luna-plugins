@@ -3,8 +3,10 @@ import { hostname } from "os";
 
 const RemoteDesktopController = require("./original.asar/app/main/remoteDesktop/RemoteDesktopController.js").default;
 const { generateDeviceId } = require("./original.asar/app/main/mdns/broadcast.js");
-
 const websocket = require("./original.asar/app/main/remoteDesktop/websocket.js").default;
+
+let service: any = null;
+let lunaRemoteDesktop: any = null;
 
 export const setup = () => {
 	if (RemoteDesktopController.__running) return console.warn("RemoteDesktopController is already running");
@@ -12,7 +14,7 @@ export const setup = () => {
 	const responder = getResponder();
 	const deviceId = generateDeviceId();
 
-	const service = responder.createService({
+	service = responder.createService({
 		disabledIpv6: true,
 		port: 2019,
 		type: "tidalconnect",
@@ -27,7 +29,7 @@ export const setup = () => {
 	});
 
 	RemoteDesktopController.__running = true;
-	const lunaRemoteDesktop = new RemoteDesktopController();
+	lunaRemoteDesktop = new RemoteDesktopController();
 	lunaRemoteDesktop.mdnsStartBroadcasting = () => service.advertise();
 	lunaRemoteDesktop.mdnsStopBroadcasting = () => service.end();
 
@@ -38,6 +40,17 @@ export const setup = () => {
 		console.log("DesktopConnect.remotePlayerProcess.stdout", ...args)
 	);
 };
-setup();
+
+// Neue Funktion zum sauberen Beenden des Dienstes
+export const stop = () => {
+	if (service) {
+		service.end();
+		service = null;
+	}
+	if (lunaRemoteDesktop) {
+		RemoteDesktopController.__running = false;
+		lunaRemoteDesktop = null;
+	}
+};
 
 export const send = websocket.send.bind(websocket);
