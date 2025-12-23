@@ -1,15 +1,11 @@
 {
-	"name": "@luna-plugins/desktop-connect-fix",
-	"displayName": "Desktop Connect (Handshake Fix)",
-	"description": "Fixed Remote control for TIDAL Desktop via TIDAL Connect",
-	"version": "1.0.1",
-	"homepage": "https://github.com/stefs72/luna-plugins#DesktopConnect",
-	"author": {
-		"name": "stefs72",
-		"url": "https://github.com/stefs72"
-	},
-	"exports": "./src/index.ts",
-	"dependencies": {
-		"@homebridge/ciao": "^1.3.1"
-	}
+  "name": "@luna-plugins/desktop-connect-fix",
+  "version": "1.0.1",
+  "description": "Tidal Connect Fix: Behebt das Springen an den Titelanfang beim Wiederverbinden.",
+  "author": "stefs72",
+  "main": "dist/index.js",
+  "luna": {
+    "id": "desktop-connect-fix",
+    "icon": "vibrate"
+  }
 }
