@@ -1,10 +1,16 @@
 import { LunaUnload, unloadSet } from "@luna/core";
 import { ipcRenderer, MediaItem, PlayState, redux } from "@luna/lib";
-import { send } from "./remoteService.native";
+import { send, setup, stop } from "./remoteService.native";
 
 export * from "./remoteService.native";
 
 export const unloads = new Set<LunaUnload>();
+
+// Initialisierung des Dienstes
+setup();
+
+// Beenden des Dienstes beim Entladen des Plugins
+unloads.add(() => stop());
 
 // #region From remote
 ipcRenderer.on(unloads, "remote.desktop.notify.media.changed", async ({ mediaId, positionMs }) => {
@@ -12,11 +18,11 @@ ipcRenderer.on(unloads, "remote.desktop.notify.media.changed", async ({ mediaId,
 	if (mediaItem) {
 		await mediaItem.play();
 		
-		// Fix für das Springen: Wenn eine Position mitgeliefert wird, springe dorthin
+		// Fix: Springt zur korrekten Position statt an den Anfang
 		if (positionMs && positionMs > 0) {
 			setTimeout(() => {
 				PlayState.seek(positionMs / 1000);
-			}, 500); // Kurze Verzögerung, damit der Player Zeit zum Laden hat
+			}, 500);
 		}
 	}
 	send({ command: "onRequestNextMedia", type: "media" });
@@ -27,15 +33,11 @@ ipcRenderer.on(unloads, "remote.desktop.prefetch", ({ mediaId, mediaType }) => {
 });
 
 ipcRenderer.on(unloads, "remote.desktop.seek", (time: number) => PlayState.seek(time / 1000));
-
-// Direkte Aufrufe zur Vermeidung von Initialisierungsfehlern
 ipcRenderer.on(unloads, "remote.desktop.play", () => PlayState.play());
 ipcRenderer.on(unloads, "remote.desktop.pause", () => PlayState.pause());
-
 ipcRenderer.on(unloads, "remote.desktop.set.shuffle", (mode: boolean) => PlayState.setShuffle(mode));
 ipcRenderer.on(unloads, "remote.desktop.set.repeat.mode", (mode: string) => PlayState.setRepeatMode(mode));
 
-// Korrektur des Tippfehlers aus dem Original (destop -> desktop)
 ipcRenderer.on(unloads, "remote.desktop.set.volume.mute", ({ level, mute }: { level: number; mute: boolean }) => {
 	redux.actions["playbackControls/SET_MUTE"](mute);
 	redux.actions["playbackControls/SET_VOLUME"]({
@@ -47,9 +49,7 @@ ipcRenderer.on(unloads, "remote.desktop.set.volume.mute", ({ level, mute }: { le
 // #region To remote
 const sessionUnloads = new Set<LunaUnload>();
 ipcRenderer.on(unloads, "remote.desktop.notify.session.state", (state) => {
-	// Wichtig für Reconnects: Alte Session-Listener immer zuerst löschen
 	unloadSet(sessionUnloads);
-
 	if (state === 0) return;
 
 	ipcRenderer.on(sessionUnloads, "client.playback.playersignal", ({ time }: { time: number }) => {
