@@ -7,9 +7,16 @@ export * from "./remoteService.native";
 export const unloads = new Set<LunaUnload>();
 
 // #region From remote
-ipcRenderer.on(unloads, "remote.desktop.notify.media.changed", async ({ mediaId }) => {
+ipcRenderer.on(unloads, "remote.desktop.notify.media.changed", async ({ mediaId, positionMs }) => {
 	const mediaItem = await MediaItem.fromId(mediaId);
-	mediaItem?.play();
+	await mediaItem?.play();
+
+	if (positionMs && positionMs > 0) {
+		setTimeout(() => {
+			PlayState.seek(positionMs / 1000);
+		}, 500);
+	}
+
 	send({ command: "onRequestNextMedia", type: "media" });
 });
 ipcRenderer.on(unloads, "remote.desktop.prefetch", ({ mediaId, mediaType }) => {
