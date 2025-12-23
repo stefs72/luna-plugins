@@ -7,10 +7,17 @@ export * from "./remoteService.native";
 export const unloads = new Set<LunaUnload>();
 
 // #region From remote
-ipcRenderer.on(unloads, "remote.desktop.notify.media.changed", async ({ mediaId }) => {
+ipcRenderer.on(unloads, "remote.desktop.notify.media.changed", async ({ mediaId, positionMs }) => {
 	const mediaItem = await MediaItem.fromId(mediaId);
 	if (mediaItem) {
 		await mediaItem.play();
+		
+		// Fix für das Springen: Wenn eine Position mitgeliefert wird, springe dorthin
+		if (positionMs && positionMs > 0) {
+			setTimeout(() => {
+				PlayState.seek(positionMs / 1000);
+			}, 500); // Kurze Verzögerung, damit der Player Zeit zum Laden hat
+		}
 	}
 	send({ command: "onRequestNextMedia", type: "media" });
 });
@@ -21,14 +28,14 @@ ipcRenderer.on(unloads, "remote.desktop.prefetch", ({ mediaId, mediaType }) => {
 
 ipcRenderer.on(unloads, "remote.desktop.seek", (time: number) => PlayState.seek(time / 1000));
 
-// Stabile Funktionsaufrufe statt .bind
+// Direkte Aufrufe zur Vermeidung von Initialisierungsfehlern
 ipcRenderer.on(unloads, "remote.desktop.play", () => PlayState.play());
 ipcRenderer.on(unloads, "remote.desktop.pause", () => PlayState.pause());
 
 ipcRenderer.on(unloads, "remote.desktop.set.shuffle", (mode: boolean) => PlayState.setShuffle(mode));
 ipcRenderer.on(unloads, "remote.desktop.set.repeat.mode", (mode: string) => PlayState.setRepeatMode(mode));
 
-// Korrektur des Tippfehlers: destop -> desktop
+// Korrektur des Tippfehlers aus dem Original (destop -> desktop)
 ipcRenderer.on(unloads, "remote.desktop.set.volume.mute", ({ level, mute }: { level: number; mute: boolean }) => {
 	redux.actions["playbackControls/SET_MUTE"](mute);
 	redux.actions["playbackControls/SET_VOLUME"]({
@@ -40,7 +47,7 @@ ipcRenderer.on(unloads, "remote.desktop.set.volume.mute", ({ level, mute }: { le
 // #region To remote
 const sessionUnloads = new Set<LunaUnload>();
 ipcRenderer.on(unloads, "remote.desktop.notify.session.state", (state) => {
-	// Bestehende Session-Listener immer zuerst säubern
+	// Wichtig für Reconnects: Alte Session-Listener immer zuerst löschen
 	unloadSet(sessionUnloads);
 
 	if (state === 0) return;
